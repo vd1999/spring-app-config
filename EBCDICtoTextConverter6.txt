@@ -1,0 +1,47 @@
+import net.sf.JRecord.Common.Constants;
+import net.sf.JRecord.Common.RecordException;
+import net.sf.JRecord.Details.LayoutDetail;
+import net.sf.JRecord.External.CobolCopybookLoader;
+import net.sf.JRecord.IO.AbstractLineReader;
+import net.sf.JRecord.IO.LineIOProvider;
+import net.sf.JRecord.Numeric.Convert;
+import net.sf.JRecord.Numeric.ICopybookDialects;
+
+import java.io.IOException;
+
+public class EBCDICToASCIIConverter {
+    public static void main(String[] args) {
+        String ebcdicFilePath = "path/to/ebcdic/file";
+        String copybookFilePath = "path/to/copybook/file";
+        String asciiFilePath = "path/to/output/ascii/file";
+
+        try {
+            // Load the copybook layout
+            LayoutDetail copybookLayout = CobolCopybookLoader.loadCopyBook(copybookFilePath, Constants.IO_FIXED_LENGTH_TEXT,
+                    Convert.FMT_MAINFRAME, ICopybookDialects.FMT_MAINFRAME);
+
+            // Create the EBCDIC line reader
+            AbstractLineReader ebcdicLineReader = LineIOProvider.getInstance().getLineReader(Constants.IO_FIXED_LENGTH_TEXT,
+                    Convert.FMT_MAINFRAME, ICopybookDialects.FMT_MAINFRAME);
+            ebcdicLineReader.open(ebcdicFilePath, copybookLayout);
+
+            // Create the ASCII line writer
+            AbstractLineReader asciiLineWriter = LineIOProvider.getInstance().getLineWriter(Constants.IO_TEXT_LINE, asciiFilePath);
+            asciiLineWriter.open(asciiFilePath, null);
+
+            // Convert each EBCDIC line to ASCII and write to the output file
+            while (ebcdicLineReader.read() >= 0) {
+                String asciiLine = copybookLayout.getRecordLayout().getFieldValue("yourAsciiField").asString();
+                asciiLineWriter.write(asciiLine);
+            }
+
+            // Close the readers/writers
+            ebcdicLineReader.close();
+            asciiLineWriter.close();
+
+            System.out.println("Conversion completed successfully.");
+        } catch (RecordException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
