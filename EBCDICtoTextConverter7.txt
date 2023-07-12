@@ -1,0 +1,95 @@
+import net.sf.JRecord.Common.RecordException;
+import net.sf.JRecord.Details.AbstractLine;
+import net.sf.JRecord.Details.LayoutDetail;
+import net.sf.JRecord.Details.RecordDetail;
+import net.sf.JRecord.IO.AbstractLineReader;
+import net.sf.JRecord.IO.AbstractLineWriter;
+import net.sf.JRecord.IO.LineIOProvider;
+import net.sf.JRecord.Numeric.Convert;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+public class TextConverter {
+
+    public static void main(String[] args) {
+        String copybookFile = "path/to/copybook.cob";
+        String inputFile = "path/to/input.dat";
+        String outputFile = "path/to/output.txt";
+
+        try {
+            convertEBCDICToASCII(copybookFile, inputFile, outputFile);
+            System.out.println("Conversion complete!");
+        } catch (IOException | RecordException e) {
+            System.err.println("An error occurred during the conversion: " + e.getMessage());
+        }
+    }
+
+    public static void convertEBCDICToASCII(String copybookFile, String inputFile, String outputFile)
+            throws IOException, RecordException {
+        FileInputStream fis = null;
+        FileOutputStream fos = null;
+
+        try {
+            fis = new FileInputStream(inputFile);
+            fos = new FileOutputStream(outputFile);
+
+            LayoutDetail layout = getLayoutFromCopyBook(copybookFile);
+            AbstractLineReader reader = LineIOProvider.getInstance().getLineReader(layout);
+            AbstractLineWriter writer = LineIOProvider.getInstance().getLineWriter(layout);
+
+            reader.open(fis);
+            writer.open(fos);
+
+            AbstractLine line;
+            while ((line = reader.read()) != null) {
+                // Convert EBCDIC line to ASCII line
+                line = convertLineToASCII(line);
+
+                // Write the converted ASCII line to the output file
+                writer.write(line);
+            }
+        } finally {
+            // Close the input and output streams
+            if (fis != null) {
+                fis.close();
+            }
+            if (fos != null) {
+                fos.close();
+            }
+        }
+    }
+
+    private static LayoutDetail getLayoutFromCopyBook(String copybookFile) throws IOException, RecordException {
+        FileInputStream fis = null;
+
+        try {
+            fis = new FileInputStream(copybookFile);
+            RecordDetail recordDetail = CopybookLoader.loadCopyBook(fis, CopybookLoader.SPLIT_NONE, 0, 0, null);
+            return recordDetail.asLayoutDetail();
+        } finally {
+            if (fis != null) {
+                fis.close();
+            }
+        }
+    }
+
+    private static AbstractLine convertLineToASCII(AbstractLine line) {
+        // Convert each field value from EBCDIC to ASCII
+        for (int i = 0; i < line.getNumberOfFields(); i++) {
+            String fieldValue = line.getFieldValue(i);
+            Convert ebcdicToAscii = new Convert();
+
+            // Convert EBCDIC field value to ASCII
+            byte[] ebcdicBytes = fieldValue.getBytes(StandardCharsets.ISO_8859_1);
+            String asciiValue = ebcdicToAscii.fromEbcdic(ebcdicBytes);
+
+            // Update the field value with ASCII value
+            line.setFieldValue(i, asciiValue);
+        }
+
+        return line;
+    }
+}
