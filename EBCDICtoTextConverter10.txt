@@ -1,0 +1,65 @@
+import net.sf.cb2xml.Cb2Xml;
+import net.sf.cb2xml.convert.Convert;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+public class TextConverter {
+
+    public static void main(String[] args) {
+        String copybookFile = "path/to/copybook.cob";
+        String inputFile = "path/to/input.dat";
+        String outputFile = "path/to/output.csv";
+
+        try {
+            convertEBCDICToCSV(copybookFile, inputFile, outputFile);
+            System.out.println("Conversion complete!");
+        } catch (IOException e) {
+            System.err.println("An error occurred during the conversion: " + e.getMessage());
+        }
+    }
+
+    public static void convertEBCDICToCSV(String copybookFile, String inputFile, String outputFile) throws IOException {
+        FileInputStream fis = null;
+        FileOutputStream fos = null;
+
+        try {
+            fis = new FileInputStream(inputFile);
+            fos = new FileOutputStream(outputFile);
+
+            // Load the copybook
+            String copybook = loadCopybook(copybookFile);
+
+            // Convert EBCDIC to CSV using cb2xml
+            String csvData = Convert.convertEbcdicToXml(copybook, fis);
+            String csvContent = Cb2Xml.csv2xml(csvData);
+
+            // Write the CSV content to the output file
+            fos.write(csvContent.getBytes(StandardCharsets.UTF_8));
+        } finally {
+            // Close the input and output streams
+            if (fis != null) {
+                fis.close();
+            }
+            if (fos != null) {
+                fos.close();
+            }
+        }
+    }
+
+    private static String loadCopybook(String copybookFile) throws IOException {
+        FileInputStream fis = null;
+        try {
+            fis = new FileInputStream(copybookFile);
+            byte[] data = new byte[(int) fis.available()];
+            fis.read(data);
+            return new String(data, StandardCharsets.UTF_8);
+        } finally {
+            if (fis != null) {
+                fis.close();
+            }
+        }
+    }
+}
