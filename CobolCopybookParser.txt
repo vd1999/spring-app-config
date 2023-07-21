@@ -1,0 +1,60 @@
+import net.sf.JRecord.Common.AbstractFieldValue;
+import net.sf.JRecord.Details.AbstractLine;
+import net.sf.JRecord.Details.CobolCopybookLoader;
+import net.sf.JRecord.Details.CobolFields;
+import net.sf.JRecord.Details.LayoutDetail;
+import net.sf.JRecord.Details.LineProvider;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+public class CobolCopybookParser {
+
+    public static Map<String, String> parseCopybook(String copybookPath) {
+        Map<String, String> fieldDataTypeMap = new HashMap<>();
+
+        try {
+            LayoutDetail layout = CobolCopybookLoader.loadCopyBook(copybookPath, 0, 0, 0, null);
+
+            // Get the root record description (first level of fields)
+            AbstractLine rootRecord = LineProvider.getInstance().getLine(layout.getRecord(0));
+
+            // Recursively traverse the fields in the copybook
+            traverseFields(rootRecord.getRecordFields(), fieldDataTypeMap);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return fieldDataTypeMap;
+    }
+
+    private static void traverseFields(CobolFields fields, Map<String, String> fieldDataTypeMap) {
+        for (int i = 0; i < fields.size(); i++) {
+            AbstractFieldValue fieldValue = fields.getField(i);
+
+            // Get the field name and data type
+            String fieldName = fieldValue.getName();
+            String dataType = fieldValue.getTypeAsString();
+
+            fieldDataTypeMap.put(fieldName, dataType);
+
+            // If the field is a group (nested structure), recursively traverse its children
+            if (fieldValue instanceof CobolFields) {
+                traverseFields((CobolFields) fieldValue, fieldDataTypeMap);
+            }
+        }
+    }
+
+    // Usage example
+    public static void main(String[] args) {
+        String copybookPath = "/path/to/your/copybook.cbl";
+        Map<String, String> fieldDataTypeMap = parseCopybook(copybookPath);
+
+        // Print the map
+        for (Map.Entry<String, String> entry : fieldDataTypeMap.entrySet()) {
+            System.out.println("Field: " + entry.getKey() + ", Data Type: " + entry.getValue());
+        }
+    }
+}

@@ -1,0 +1,35 @@
+import java.util.Map;
+
+public class CreateTableGenerator {
+
+    public static void main(String[] args) {
+        String copybookPath = "/path/to/your/copybook.cbl";
+        Map<String, String> cobolFieldDataTypes = CobolCopybookParser.parseCopybook(copybookPath);
+
+        // Generate the CREATE TABLE syntax
+        String tableName = "YourTableName";
+        StringBuilder createTableSyntax = new StringBuilder("CREATE TABLE ");
+        createTableSyntax.append(tableName).append(" (");
+
+        for (Map.Entry<String, String> entry : cobolFieldDataTypes.entrySet()) {
+            String fieldName = entry.getKey();
+            String cobolDataType = entry.getValue();
+
+            List<String> dataTypeMapping = CobolDataTypeMapping.get(cobolDataType);
+            if (dataTypeMapping != null) {
+                String sqlServerDataType = dataTypeMapping.get(0);
+
+                // Append the field name and SQL Server data type to the CREATE TABLE syntax
+                createTableSyntax.append("\n\t").append(fieldName).append(" ").append(sqlServerDataType).append(",");
+            } else {
+                System.out.println("No mapping found for COBOL data type: " + cobolDataType);
+            }
+        }
+
+        // Remove the last comma and add the closing bracket for the CREATE TABLE syntax
+        createTableSyntax.deleteCharAt(createTableSyntax.length() - 1);
+        createTableSyntax.append("\n);");
+
+        System.out.println(createTableSyntax.toString());
+    }
+}

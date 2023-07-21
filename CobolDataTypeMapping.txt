@@ -1,0 +1,81 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class CobolDataTypeMapping {
+
+    public static void main(String[] args) {
+        // Create the Map to hold the data type mapping with lists as values
+        Map<String, List<String>> cobolDataTypeMapping = new HashMap<>();
+
+        // Add mappings to the Map
+        cobolDataTypeMapping.put("PIC X", createMapping("VARCHAR", "String"));
+        cobolDataTypeMapping.put("PIC X(n)", createMapping("VARCHAR(n)", "String"));
+        cobolDataTypeMapping.put("PIC 9", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC 9(n)", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC S9", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC S9(n)", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC 9(3)", createMapping("SMALLINT", "short"));
+        cobolDataTypeMapping.put("PIC 9(4)", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC 9(9)", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC S9(3)", createMapping("SMALLINT", "short"));
+        cobolDataTypeMapping.put("PIC S9(4)", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC S9(9)", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC 9V9", createMapping("DECIMAL(3,1)", "double"));
+        cobolDataTypeMapping.put("PIC S9V9", createMapping("DECIMAL(3,1)", "double"));
+        cobolDataTypeMapping.put("PIC 9(3)V9(2)", createMapping("DECIMAL(3,2)", "double"));
+        cobolDataTypeMapping.put("PIC S9(3)V9(2)", createMapping("DECIMAL(3,2)", "double"));
+        cobolDataTypeMapping.put("PIC 9(5)V9(2)", createMapping("DECIMAL(5,2)", "double"));
+        cobolDataTypeMapping.put("PIC S9(5)V9(2)", createMapping("DECIMAL(5,2)", "double"));
+        cobolDataTypeMapping.put("PIC 9(10)V9(2)", createMapping("DECIMAL(10,2)", "double"));
+        cobolDataTypeMapping.put("PIC S9(10)V9(2)", createMapping("DECIMAL(10,2)", "double"));
+        cobolDataTypeMapping.put("PIC 9(15)V9(2)", createMapping("DECIMAL(15,2)", "double"));
+        cobolDataTypeMapping.put("PIC S9(15)V9(2)", createMapping("DECIMAL(15,2)", "double"));
+        cobolDataTypeMapping.put("PIC 9(31)V9(2)", createMapping("DECIMAL(31,2)", "double"));
+        cobolDataTypeMapping.put("PIC S9(31)V9(2)", createMapping("DECIMAL(31,2)", "double"));
+        cobolDataTypeMapping.put("PIC 9(31)", createMapping("NUMERIC(31,0)", "BigDecimal"));
+        cobolDataTypeMapping.put("PIC S9(31)", createMapping("NUMERIC(31,0)", "BigDecimal"));
+        cobolDataTypeMapping.put("PIC 9(18)", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC S9(18)", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC 9(4) COMP", createMapping("SMALLINT", "short"));
+        cobolDataTypeMapping.put("PIC S9(4) COMP", createMapping("SMALLINT", "short"));
+        cobolDataTypeMapping.put("PIC 9(9) COMP", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC S9(9) COMP", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC 9(18) COMP", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC S9(18) COMP", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC 9(4) COMP-3", createMapping("SMALLINT", "short"));
+        cobolDataTypeMapping.put("PIC S9(4) COMP-3", createMapping("SMALLINT", "short"));
+        cobolDataTypeMapping.put("PIC 9(9) COMP-3", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC S9(9) COMP-3", createMapping("INT", "int"));
+        cobolDataTypeMapping.put("PIC 9(18) COMP-3", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC S9(18) COMP-3", createMapping("BIGINT", "long"));
+        cobolDataTypeMapping.put("PIC 9(7)V9(2) PACKED-DECIMAL", createMapping("DECIMAL(9,2)", "double"));
+        cobolDataTypeMapping.put("PIC S9(7)V9(2) PACKED-DECIMAL", createMapping("DECIMAL(9,2)", "double"));
+
+        // Date and Time data types
+        cobolDataTypeMapping.put("PIC 9(6)", createMapping("TIME", "String"));
+        cobolDataTypeMapping.put("PIC 9(6)V9(2)", createMapping("TIME(2)", "String"));
+        cobolDataTypeMapping.put("PIC 9(8)", createMapping("DATE", "String"));
+        cobolDataTypeMapping.put("PIC 9(8)V9(2)", createMapping("DATE(2)", "String"));
+        cobolDataTypeMapping.put("PIC 9(14)", createMapping("DATETIME", "String"));
+        cobolDataTypeMapping.put("PIC 9(14)V9(2)", createMapping("DATETIME(2)", "String"));
+        cobolDataTypeMapping.put("PIC S9(11)V9(7) PACKED-DECIMAL", createMapping("DATETIME(7)", "String"));
+
+        // Add more mappings as needed
+
+        // Test the mapping
+        String cobolDataType = "PIC 9(14)";
+        List<String> dataTypeMapping = cobolDataTypeMapping.get(cobolDataType);
+        if (dataTypeMapping != null) {
+            String sqlServerDataType = dataTypeMapping.get(0);
+            String javaDataType = dataTypeMapping.get(1);
+            System.out.println("COBOL data type: " + cobolDataType);
+            System.out.println("SQL Server data type: " + sqlServerDataType);
+            System.out.println("Java data type: " + javaDataType);
+        } else {
+            System.out.println("No mapping found for COBOL data type: " + cobolDataType);
+        }
+    }
+
+   
