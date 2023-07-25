@@ -1,0 +1,31 @@
+import java.io.*;
+import java.util.zip.*;
+
+public class ReadZipFile {
+    public static void main(String[] args) {
+        // Specify the path to the zip file and the name of the file you want to read
+        String zipFilePath = "path/to/your/zipfile.zip";
+        String fileNameToRead = "file-inside-zip.txt";
+
+        try (ZipFile zipFile = new ZipFile(zipFilePath)) {
+            ZipEntry zipEntry = zipFile.getEntry(fileNameToRead);
+
+            if (zipEntry != null) {
+                // Open an input stream to read the contents of the zip entry (file inside the zip)
+                try (InputStream inputStream = zipFile.getInputStream(zipEntry);
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+
+                    // Read the file contents line by line and print them
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println(line);
+                    }
+                }
+            } else {
+                System.out.println("File not found inside the zip.");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
