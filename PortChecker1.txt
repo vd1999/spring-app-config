@@ -1,0 +1,47 @@
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+
+public class PortChecker1 {
+    public static void main(String[] args) {
+        String host = "your_remote_host_or_ip";
+        int port = your_port_number;
+
+        // Check using TCP
+        boolean isTCPOpen = isPortOpenTCP(host, port);
+        if (isTCPOpen) {
+            System.out.println("Port " + port + " is open on " + host + " using TCP protocol");
+        } else {
+            System.out.println("Port " + port + " is closed on " + host + " for TCP protocol");
+        }
+
+        // Check using UDP
+        boolean isUDPOpen = isPortOpenUDP(host, port);
+        if (isUDPOpen) {
+            System.out.println("Port " + port + " is open on " + host + " using UDP protocol");
+        } else {
+            System.out.println("Port " + port + " is closed on " + host + " for UDP protocol");
+        }
+    }
+
+    private static boolean isPortOpenTCP(String host, int port) {
+        try (Socket socket = new Socket()) {
+            SocketAddress address = new InetSocketAddress(host, port);
+            socket.connect(address, 2000); // 2000 milliseconds timeout
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isPortOpenUDP(String host, int port) {
+        try (DatagramSocket socket = new DatagramSocket()) {
+            SocketAddress address = new InetSocketAddress(host, port);
+            socket.connect(address);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
