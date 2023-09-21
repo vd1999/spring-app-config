@@ -1,0 +1,13 @@
+public class RemoveNonPrintableCharacters {
+    public static void main(String[] args) {
+        // Input string containing ASCII and EBCDIC characters
+        String input = "Hello, \u0007world!\nThis is a text with \u001Fnon-printable characters.";
+        
+        // Remove all non-printable ASCII and EBCDIC characters
+        String cleanedInput = input.replaceAll("[\\p{Cntrl}\\p{InBasicLatin}\\p{InCJKUnifiedIdeographs}\\p{InHiragana}\\p{InKatakana}\\p{InHangeul}\\p{InHangulCompatibilityJamo}\\p{InKanbun}\\p{InBopomofo}\\p{InHangulSyllables}\\p{InHiragana}]", "");
+
+        // Print the cleaned input
+        System.out.println("Original input:\n" + input);
+        System.out.println("\nCleaned input:\n" + cleanedInput);
+    }
+}
