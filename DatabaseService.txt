@@ -1,0 +1,46 @@
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+@Service
+public class DatabaseService {
+
+    private final JdbcTemplate customJdbcTemplate; // Use the @Qualifier annotation to specify the bean name
+
+    @Autowired
+    public DatabaseService(@Qualifier("customJdbcTemplate") JdbcTemplate customJdbcTemplate) {
+        this.customJdbcTemplate = customJdbcTemplate;
+    }
+
+    public void insertData(Object[][] dataValues) {
+        String sql = "INSERT INTO your_table_name (column1, column2, ..., column500) VALUES (?, ?, ..., ?)";
+        
+        final int batchSize = 1000;
+        int totalRecords = dataValues.length;
+        
+        for (int i = 0; i < totalRecords; i += batchSize) {
+            final int batchStart = i;
+            final int batchEnd = Math.min(i + batchSize, totalRecords);
+            
+            customJdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement preparedStatement, int j) throws SQLException {
+                    Object[] row = dataValues[batchStart + j];
+                    
+                    for (int k = 0; k < row.length; k++) {
+                        preparedStatement.setObject(k + 1, row[k]);
+                    }
+                }
+                
+                @Override
+                public int getBatchSize() {
+                    return batchEnd - batchStart;
+                }
+            });
+        }
+    }
+}
