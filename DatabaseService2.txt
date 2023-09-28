@@ -1,0 +1,57 @@
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class DatabaseService {
+
+    private final JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public DatabaseService(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public void insertData(Map<Integer, List<String>> dataMap) {
+        String sql = "INSERT INTO your_table_name (column1, column2, ..., column500) VALUES (?, ?, ..., ?)";
+
+        final int batchSize = 1000;
+        int totalRecords = dataMap.size();
+
+        for (int i = 0; i < totalRecords; i += batchSize) {
+            final int batchStart = i;
+            final int batchEnd = Math.min(i + batchSize, totalRecords);
+
+            jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement preparedStatement, int j) throws SQLException {
+                    int rowIndex = batchStart + j;
+                    List<String> columnValues = dataMap.get(rowIndex);
+
+                    if (columnValues != null) {
+                        // Assuming the list size matches the number of columns
+                        for (int k = 0; k < columnValues.size(); k++) {
+                            preparedStatement.setObject(k + 1, columnValues.get(k));
+                        }
+                    }
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return batchEnd - batchStart;
+                }
+            });
+
+            // Log the progress
+            int recordsProcessed = batchEnd - batchStart;
+            int recordsRemaining = totalRecords - batchEnd;
+            System.out.println("Processed " + recordsProcessed + " records. " + recordsRemaining + " records remaining.");
+        }
+    }
+}
