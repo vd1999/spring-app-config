@@ -1,0 +1,62 @@
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public class BatchInsertSetter implements BatchPreparedStatementSetter {
+    private final Map<Integer, List<String>> dataMap;
+    private final int batchSize;
+    private final List<String> batchedStatements = new ArrayList<>();
+
+    public BatchInsertSetter(Map<Integer, List<String>> dataMap, int batchSize) {
+        this.dataMap = dataMap;
+        this.batchSize = batchSize;
+    }
+
+    @Override
+    public void setValues(PreparedStatement preparedStatement, int i) throws SQLException {
+        int rowIndex = i + 1; // Adjust the row index as needed
+        List<String> columnValues = dataMap.get(rowIndex);
+
+        if (columnValues != null) {
+            // Assuming the list size matches the number of columns
+            for (int k = 0; k < columnValues.size(); k++) {
+                preparedStatement.setObject(k + 1, columnValues.get(k));
+            }
+        }
+
+        // Construct the SQL statement with values and add it to the list
+        String sqlWithValues = constructSqlWithValues(preparedStatement);
+        batchedStatements.add(sqlWithValues);
+    }
+
+    @Override
+    public int getBatchSize() {
+        return Math.min(batchSize, dataMap.size());
+    }
+
+    // Method to construct the SQL statement with values
+    private String constructSqlWithValues(PreparedStatement preparedStatement) throws SQLException {
+        String originalSql = preparedStatement.toString();
+        int paramCount = preparedStatement.getParameterMetaData().getParameterCount();
+
+        StringBuilder sqlWithValues = new StringBuilder(originalSql);
+
+        for (int i = 1; i <= paramCount; i++) {
+            String paramValue = preparedStatement.getObject(i) != null
+                    ? preparedStatement.getObject(i).toString()
+                    : "null";
+            sqlWithValues.replace(sqlWithValues.indexOf("?"), sqlWithValues.indexOf("?") + 1, "'" + paramValue + "'");
+        }
+
+        return sqlWithValues.toString();
+    }
+
+    // Method to retrieve the batched statements with values
+    public List<String> getBatchedStatements() {
+        return batchedStatements;
+    }
+}
