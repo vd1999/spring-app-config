@@ -1,0 +1,39 @@
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Properties;
+
+import lombok.extern.slf4j; // Add this import
+
+@Slf4j // Add this annotation
+@Component
+public class FileWatcherComponent {
+
+    private static final Logger log = LoggerFactory.getLogger(FileWatcherComponent.class);
+
+    @Value("${folderPath}")
+    private String folderPath;
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
+
+    public FileWatcherComponent(KafkaTemplate<String, String> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    @Scheduled(fixedRate = 60000)
+    public void watchFolderAndSendToKafka() {
+        try {
+            // ... (same code as before)
+
+            log.info("File uploaded: {}", filePath.toString()); // Use log.info for logging
+        } catch (IOException | InterruptedException e) {
+            log.error("Error occurred: {}", e.getMessage()); // Use log.error for logging errors
+        }
+    }
+}

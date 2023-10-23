@@ -1,0 +1,53 @@
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Properties;
+
+public class FileWatcher {
+
+    public static void main(String[] args) {
+        // Configure Kafka producer
+        Properties kafkaProps = new Properties();
+        kafkaProps.put("bootstrap.servers", "localhost:9092"); // Modify with your Kafka broker address
+        kafkaProps.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        kafkaProps.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        Producer<String, String> producer = new KafkaProducer<>(kafkaProps);
+
+        // Define the folder to watch
+        String folderPath = "/path/to/your/folder"; // Modify with the folder you want to watch
+
+        try {
+            WatchService watchService = FileSystems.getDefault().newWatchService();
+            Path folder = Paths.get(folderPath);
+            folder.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
+
+            System.out.println("File Watcher is running...");
+
+            while (true) {
+                WatchKey key = watchService.take();
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+                        Path filePath = folder.resolve((Path) event.context());
+
+                        // Process the uploaded file and send a message to Kafka
+                        String fileContent = Files.readString(filePath);
+                        String topic = "your-kafka-topic"; // Modify with your Kafka topic
+
+                        ProducerRecord<String, String> record = new ProducerRecord<>(topic, fileContent);
+                        producer.send(record);
+
+                        System.out.println("File uploaded: " + filePath.toString());
+                    }
+                }
+                key.reset();
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            producer.close();
+        }
+    }
+}

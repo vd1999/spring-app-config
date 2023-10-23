@@ -1,0 +1,57 @@
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Properties;
+
+@Component
+public class FileWatcherComponent {
+
+    @Value("${folderPath}")
+    private String folderPath;
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
+
+    public FileWatcherComponent(KafkaTemplate<String, String> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    @Scheduled(fixedRate = 60000) // Adjust the rate as needed (e.g., 60,000ms = 1 minute)
+    public void watchFolderAndSendToKafka() {
+        try {
+            WatchService watchService = FileSystems.getDefault().newWatchService();
+            Path folder = Paths.get(folderPath);
+            folder.register(watchService, StandardWatchEventKinds.ENTRY_CREATE);
+
+            System.out.println("File Watcher is running...");
+
+            WatchKey key;
+            while ((key = watchService.take()) != null) {
+                for (WatchEvent<?> event : key.pollEvents()) {
+                    if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+                        Path filePath = folder.resolve((Path) event.context());
+
+                        // Process the uploaded file and send a message to Kafka
+                        String fileContent = Files.readString(filePath);
+                        String topic = "your-kafka-topic"; // Modify with your Kafka topic
+
+                        ProducerRecord<String, String> record = new ProducerRecord<>(topic, fileContent);
+                        kafkaTemplate.send(record);
+
+                        System.out.println("File uploaded: " + filePath.toString());
+                    }
+                }
+                key.reset();
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+spring.kafka.producer.bootstrap-servers=localhost:9092
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
