@@ -1,0 +1,72 @@
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class MultiThreadedTableProcessing {
+
+    public static void main(String[] args) {
+        // Initialize your list of tables (replace this with your actual table names)
+        List<String> allTables = new ArrayList<>();
+        // Populate allTables with your 497 table names
+
+        int numGroups = 30;
+        int tablesPerGroup = allTables.size() / numGroups;
+
+        // Create a DataSource with connection pooling using Spring JDBC
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        dataSource.setUrl("jdbc:sqlserver://your_server:1433;databaseName=your_database;");
+        dataSource.setUsername("your_username");
+        dataSource.setPassword("your_password");
+
+        // Create a JdbcTemplate
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+        // Determine the number of processors available
+        int numProcessors = Runtime.getRuntime().availableProcessors();
+
+        // Create a thread pool with a size based on the number of processors
+        ExecutorService executorService = Executors.newFixedThreadPool(numProcessors);
+
+        // Divide tables into groups and process each group in parallel
+        for (int i = 0; i < numGroups; i++) {
+            final int groupIndex = i;
+            executorService.submit(() -> {
+                int startIndex = groupIndex * tablesPerGroup;
+                int endIndex = (groupIndex == numGroups - 1) ? allTables.size() : (startIndex + tablesPerGroup);
+
+                List<String> groupTables = allTables.subList(startIndex, endIndex);
+
+                // Process the tables in this group using the JdbcTemplate and PreparedStatement
+                processTables(jdbcTemplate, groupTables);
+            });
+        }
+
+        // Shutdown the executor service after all tasks are submitted
+        executorService.shutdown();
+    }
+
+    private static void processTables(JdbcTemplate jdbcTemplate, List<String> tables) {
+        for (String tableName : tables) {
+            // Perform your data processing using PreparedStatement and jdbcTemplate
+            String sql = "SELECT * FROM " + tableName;
+            
+            jdbcTemplate.query(sql, (rs) -> {
+                // Process the result set or perform other operations
+                // Example: Using PreparedStatement for secure query execution
+                try {
+                    PreparedStatement preparedStatement = rs.unwrap(PreparedStatement.class);
+                    // You can use preparedStatement to set parameters or perform other operations
+                } catch (SQLException e) {
+                    // Handle exception
+                }
+            });
+        }
+    }
+}
