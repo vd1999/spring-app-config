@@ -1,0 +1,23 @@
+server:
+  tomcat:
+    basedir: tomcat
+    accesslog:
+      enabled: true
+      suffix: log
+      prefix: access_log
+      file-date-format: .yyyy-MM-dd
+      directory: logs
+
+logging:
+  level:
+    org.apache.tomcat: DEBUG
+    org.apache.catalina: DEBUG
+    com.zaxxer.hikari.HikariConfig: DEBUG
+
+spring:
+  datasource:
+    local:
+      ebcdic:
+        url: url
+      hikari:
+        maximum-pool-size: 50
