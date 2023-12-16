@@ -1,0 +1,92 @@
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.*;
+
+public class MapToFileExample {
+
+    public static void main(String[] args) {
+        // Specify the parent folder
+        String parentFolderName = "/path/to/parent/folder";
+
+        // Specify the subfolder name
+        String subfolderName = "mySubfolder";
+
+        // Create a Map for demonstration purposes
+        Map<String, List<String>> dataMap = new HashMap<>();
+        dataMap.put("key1", Arrays.asList("value1", "value2"));
+
+        // Write the data to files using keys as file names
+        writeDataToFiles(parentFolderName, subfolderName, dataMap);
+
+        // Read the stored data from the files
+        Map<String, List<String>> loadedData = readDataFromFiles(parentFolderName, subfolderName, dataMap.keySet());
+
+        // Display the loaded data
+        System.out.println("Loaded Data:");
+        loadedData.forEach((key, value) -> System.out.println(key + ": " + value));
+    }
+
+    private static void writeDataToFiles(String parentFolderName, String subfolderName, Map<String, List<String>> dataMap) {
+        try {
+            // Create the parent folder if it doesn't exist
+            Path parentFolderPath = Paths.get(parentFolderName);
+            if (Files.notExists(parentFolderPath)) {
+                Files.createDirectories(parentFolderPath);
+            }
+
+            // Create the subfolder within the parent folder
+            Path subfolderPath = parentFolderPath.resolve(subfolderName);
+            if (Files.notExists(subfolderPath)) {
+                Files.createDirectories(subfolderPath);
+            }
+
+            // Write the Map<String, List<String>> as files in the subfolder
+            for (Map.Entry<String, List<String>> entry : dataMap.entrySet()) {
+                String key = entry.getKey();
+                String values = String.join(",", entry.getValue());
+
+                // Specify the file path to write the data
+                Path dataFilePath = subfolderPath.resolve(key + ".txt");
+
+                // Write the data to the file
+                Files.write(dataFilePath, Collections.singletonList(key + "=" + values));
+
+                System.out.println("Data stored successfully in: " + dataFilePath.toAbsolutePath());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Map<String, List<String>> readDataFromFiles(String parentFolderName, String subfolderName, Set<String> keys) {
+        Map<String, List<String>> loadedData = new HashMap<>();
+
+        try {
+            // Read the data from files using keys as file names
+            Path parentFolderPath = Paths.get(parentFolderName);
+            Path subfolderPath = parentFolderPath.resolve(subfolderName);
+
+            for (String key : keys) {
+                // Specify the file path to read the data
+                Path dataFilePath = subfolderPath.resolve(key + ".txt");
+
+                // Read the lines from the file
+                List<String> lines = Files.readAllLines(dataFilePath);
+
+                // Parse the lines and populate the loadedData map
+                for (String line : lines) {
+                    String[] entry = line.split("=", 2);
+                    if (entry.length == 2) {
+                        String loadedKey = entry[0].trim();
+                        String[] values = entry[1].trim().split(",");
+                        loadedData.put(loadedKey, Arrays.asList(values));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return loadedData;
+    }
+}
