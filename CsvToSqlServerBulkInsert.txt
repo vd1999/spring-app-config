@@ -1,0 +1,84 @@
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvException;
+import de.bytefish.sqlserverbulkinsert.SqlServerBulkInsert;
+import de.bytefish.sqlserverbulkinsert.model.DataTable;
+import de.bytefish.sqlserverbulkinsert.model.metadata.ColumnMetadata;
+import de.bytefish.sqlserverbulkinsert.model.metadata.DataTableMetadata;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class CsvToSqlServerBulkInsert {
+
+    public static void main(String[] args) {
+        String url = "jdbc:sqlserver://YourServerAddress:1433;databaseName=YourDatabaseName";
+        String user = "YourUsername";
+        String password = "YourPassword";
+        String csvFilePath = "path/to/your/csvfile.csv";
+
+        // Define column names and data types
+        List<ColumnMetadata> columnMetadataList = new ArrayList<>();
+        columnMetadataList.add(new ColumnMetadata("DELTA_BYTE", "VARCHAR")); // Assuming the first column is DELTA_BYTE
+        for (int i = 1; i < 500; i++) { // Start from 1 assuming DELTA_BYTE is at index 0
+            columnMetadataList.add(new ColumnMetadata("Column" + (i + 1), "VARCHAR")); // Adjust data types as necessary
+        }
+
+        DataTableMetadata dataTableMetadata = new DataTableMetadata(columnMetadataList);
+
+        try (Connection conn = DriverManager.getConnection(url, user, password);
+             CSVReader reader = new CSVReader(new FileReader(csvFilePath))) {
+
+            // Skip header
+            reader.readNext();
+
+            // Initialize bulk insert
+            SqlServerBulkInsert bulkInsert = new SqlServerBulkInsert(conn, dataTableMetadata);
+
+            // Process the CSV file as a stream
+            String[] nextLine;
+            DataTable dataTable = new DataTable(dataTableMetadata); // Create DataTable outside the loop
+            int count = 0;
+            while ((nextLine = reader.readNext()) != null) {
+                // Check if DELTA_BYTE is 'A' or 'D', ignore the line otherwise
+                if (!nextLine[0].equals("'A") && !nextLine[0].equals("'D")) {
+                    continue; // Skip the line
+                }
+                List<String> sanitizedLine = sanitizeLine(nextLine);
+                dataTable.addRow(sanitizedLine);
+                count++;
+                if (count == 10000) {
+                    bulkInsert.bulkInsert(dataTable); // Bulk insert the DataTable
+                    dataTable.clear(); // Clear DataTable for the next chunk
+                    count = 0; // Reset count for the next chunk
+                }
+            }
+
+            // Process the remaining lines (if any)
+            if (!dataTable.isEmpty()) {
+                bulkInsert.bulkInsert(dataTable); // Bulk insert the remaining data
+            }
+
+            System.out.println("Bulk insert completed.");
+
+        } catch (IOException | CsvException | SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static List<String> sanitizeLine(String[] line) {
+        // Sanitize each element in the line
+        List<String> sanitizedLine = new ArrayList<>();
+        for (String value : line) {
+            // Escape special characters and trim whitespace
+            String sanitizedValue = value.replaceAll("[',\\\\]", "\\\\$0").trim();
+            sanitizedLine.add(sanitizedValue);
+        }
+        return sanitizedLine;
+    }
+}
