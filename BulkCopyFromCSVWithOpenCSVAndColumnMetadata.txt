@@ -1,0 +1,100 @@
+import com.microsoft.sqlserver.jdbc.ColumnMetaData;
+import com.microsoft.sqlserver.jdbc.SQLServerBulkCopy;
+import com.microsoft.sqlserver.jdbc.SQLServerBulkCopyOptions;
+import com.microsoft.sqlserver.jdbc.SQLServerException;
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvValidationException;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class BulkCopyFromCSVWithOpenCSVAndColumnMetadata {
+
+    public static void main(String[] args) {
+        String server = "YourServerAddress";
+        String database = "YourDatabaseName";
+        String user = "YourUsername";
+        String password = "YourPassword";
+        String tableName = "YourTableName";
+        String csvFilePath = "path/to/your/csvfile.csv";
+        String connectionString = String.format("jdbc:sqlserver://%s;databaseName=%s;user=%s;password=%s", server, database, user, password);
+
+        try (Connection connection = DriverManager.getConnection(connectionString)) {
+            // Configure bulk copy options
+            SQLServerBulkCopyOptions options = new SQLServerBulkCopyOptions();
+            options.setBatchSize(1000); // Adjust batch size as needed
+            options.setBulkCopyTimeout(60); // Adjust timeout as needed
+
+            // Get column metadata for the destination table
+            List<ColumnMetaData> columnMetadata = constructColumnMetadata(connection, tableName);
+
+            // Perform bulk copy from CSV file
+            try (CSVReader csvReader = new CSVReader(new FileReader(csvFilePath));
+                 SQLServerBulkCopy bulkCopy = new SQLServerBulkCopy(connection)) {
+
+                // Set destination table name
+                bulkCopy.setDestinationTableName(tableName);
+
+                // Set column metadata
+                bulkCopy.setColumnMetadata(columnMetadata.toArray(new ColumnMetaData[0]));
+
+                // Skip the header line
+                csvReader.skip(1);
+
+                // Accumulate data from CSV file
+                List<String[]> batchData = new ArrayList<>();
+                String[] nextLine;
+                while ((nextLine = csvReader.readNext()) != null) {
+                    batchData.add(nextLine);
+
+                    // Perform bulk copy if batch size is reached
+                    if (batchData.size() >= options.getBatchSize()) {
+                        bulkCopy.writeToServer(batchData.toArray(new String[0][]));
+                        batchData.clear(); // Clear batch data after bulk copy
+                    }
+                }
+
+                // Perform bulk copy for remaining data (if any)
+                if (!batchData.isEmpty()) {
+                    bulkCopy.writeToServer(batchData.toArray(new String[0][]));
+                }
+
+                System.out.println("Bulk copy from CSV file completed.");
+            } catch (CsvValidationException | IOException e) {
+                e.printStackTrace();
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Method to construct column metadata for the destination table
+    private static List<ColumnMetaData> constructColumnMetadata(Connection connection, String tableName) throws SQLException {
+        List<ColumnMetaData> columnMetadata = new ArrayList<>();
+        // Query database metadata to get column information
+        // Example: ResultSet resultSet = connection.getMetaData().getColumns(null, null, tableName, null);
+        // Loop through ResultSet and construct ColumnMetaData for each column
+        // Example:
+        /*
+        while (resultSet.next()) {
+            String columnName = resultSet.getString("COLUMN_NAME");
+            int sqlType = resultSet.getInt("DATA_TYPE");
+            int precision = resultSet.getInt("COLUMN_SIZE");
+            int scale = resultSet.getInt("DECIMAL_DIGITS");
+            ColumnMetaData metaData = new ColumnMetaData(columnName, sqlType, precision, scale);
+            columnMetadata.add(metaData);
+        }
+        */
+        // For demonstration purpose, let's assume column metadata
+        columnMetadata.add(new ColumnMetaData("ColumnName1", java.sql.Types.VARCHAR));
+        columnMetadata.add(new ColumnMetaData("ColumnName2", java.sql.Types.INTEGER));
+        // Add more column metadata as needed
+        return columnMetadata;
+    }
+}
