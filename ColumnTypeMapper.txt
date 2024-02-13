@@ -1,0 +1,99 @@
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.DatabaseMetaData;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Types;
+
+public class ColumnTypeMapper {
+
+    public static void main(String[] args) {
+        String url = "jdbc:sqlserver://YourServerAddress:1433;databaseName=YourDatabaseName";
+        String user = "YourUsername";
+        String password = "YourPassword";
+
+        try (Connection conn = DriverManager.getConnection(url, user, password)) {
+            // Method 1: Using DatabaseMetaData
+            mapUsingDatabaseMetaData(conn, "YourTableName");
+
+            // Method 2: Using ResultSetMetaData
+            mapUsingResultSetMetaData(conn, "YourTableName");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void mapUsingDatabaseMetaData(Connection conn, String tableName) throws SQLException {
+        DatabaseMetaData metaData = conn.getMetaData();
+        ResultSet columns = metaData.getColumns(null, null, tableName, null);
+        while (columns.next()) {
+            String columnName = columns.getString("COLUMN_NAME");
+            String dataType = columns.getString("TYPE_NAME");
+            int jdbcType = mapToSqlType(dataType);
+            System.out.println("Column: " + columnName + ", SQL Type: " + jdbcType);
+        }
+    }
+
+    private static void mapUsingResultSetMetaData(Connection conn, String tableName) throws SQLException {
+        Statement statement = conn.createStatement();
+        ResultSet resultSet = statement.executeQuery("SELECT * FROM " + tableName);
+        ResultSetMetaData metaData = resultSet.getMetaData();
+        int columnCount = metaData.getColumnCount();
+        for (int i = 1; i <= columnCount; i++) {
+            String columnName = metaData.getColumnName(i);
+            String dataType = metaData.getColumnTypeName(i);
+            int jdbcType = mapToSqlType(dataType);
+            System.out.println("Column: " + columnName + ", SQL Type: " + jdbcType);
+        }
+    }
+
+    private static int mapToSqlType(String dataType) {
+        switch (dataType.toLowerCase()) {
+            case "varchar":
+                return Types.VARCHAR;
+            case "nvarchar":
+                return Types.NVARCHAR;
+            case "char":
+                return Types.CHAR;
+            case "nchar":
+                return Types.NCHAR;
+            case "text":
+                return Types.LONGVARCHAR;
+            case "ntext":
+                return Types.LONGNVARCHAR;
+            case "numeric":
+            case "decimal":
+                return Types.NUMERIC;
+            case "smallint":
+                return Types.SMALLINT;
+            case "int":
+                return Types.INTEGER;
+            case "bigint":
+                return Types.BIGINT;
+            case "real":
+                return Types.REAL;
+            case "float":
+                return Types.FLOAT;
+            case "double":
+                return Types.DOUBLE;
+            case "bit":
+                return Types.BIT;
+            case "date":
+                return Types.DATE;
+            case "time":
+                return Types.TIME;
+            case "datetime":
+                return Types.TIMESTAMP;
+            case "binary":
+                return Types.BINARY;
+            case "varbinary":
+                return Types.VARBINARY;
+            case "image":
+                return Types.LONGVARBINARY;
+            default:
+                return Types.OTHER;
+        }
+    }
+}
