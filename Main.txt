@@ -1,0 +1,133 @@
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        // Initialize JDBC Template
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        dataSource.setUrl("jdbc:sqlserver://your_server:port;databaseName=your_database;sendStringParametersAsUnicode=false;rewriteBatchedStatements=true");
+        dataSource.setUsername("your_username");
+        dataSource.setPassword("your_password");
+
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+        // Read from CSV and insert into database in batches
+        String csvFile = "Loan.csv";
+        String csvSplitBy = ",";
+        int batchSize = 10000;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+            br.readLine(); // Skip header if exists
+
+            List<String[]> batchData = new ArrayList<>();
+            String line;
+            int count = 0;
+
+            // Read metadata to get column names
+            ResultSetMetaData metaData = jdbcTemplate.getDataSource().getConnection()
+                    .prepareStatement("SELECT * FROM Loan WHERE 1 = 0")
+                    .executeQuery().getMetaData();
+
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(csvSplitBy);
+                batchData.add(data);
+                count++;
+
+                if (count % batchSize == 0) {
+                    insertBatch(jdbcTemplate, batchData, metaData);
+                    batchData.clear();
+                }
+            }
+
+            // Insert remaining data
+            if (!batchData.isEmpty()) {
+                insertBatch(jdbcTemplate, batchData, metaData);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void insertBatch(JdbcTemplate jdbcTemplate, List<String[]> batchData, ResultSetMetaData metaData) {
+        StringBuilder insertQuery = new StringBuilder("INSERT INTO Loan (");
+        int numColumns = 0;
+
+        try {
+            // Construct insert statement dynamically
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                insertQuery.append(metaData.getColumnName(i));
+                if (i < metaData.getColumnCount()) {
+                    insertQuery.append(", ");
+                }
+                numColumns++;
+            }
+            insertQuery.append(") VALUES (");
+            for (int i = 0; i < numColumns; i++) {
+                insertQuery.append("?");
+                if (i < numColumns - 1) {
+                    insertQuery.append(", ");
+                }
+            }
+            insertQuery.append(")");
+
+            // Batch update
+            jdbcTemplate.batchUpdate(insertQuery.toString(), new BatchPreparedStatementSetter() {
+                @Override
+                public void setValues(PreparedStatement ps, int i) throws SQLException {
+                    String[] data = batchData.get(i);
+
+                    for (int j = 0; j < data.length; j++) {
+                        switch (metaData.getColumnType(j + 1)) {
+                            case java.sql.Types.INTEGER:
+                                ps.setInt(j + 1, Integer.parseInt(data[j]));
+                                break;
+                            case java.sql.Types.DOUBLE:
+                                ps.setDouble(j + 1, Double.parseDouble(data[j]));
+                                break;
+                            case java.sql.Types.FLOAT:
+                                ps.setFloat(j + 1, Float.parseFloat(data[j]));
+                                break;
+                            case java.sql.Types.DECIMAL:
+                                BigDecimal decimalValue = new BigDecimal(data[j]);
+                                int scale = metaData.getScale(j + 1);
+                                ps.setBigDecimal(j + 1, decimalValue.setScale(scale, BigDecimal.ROUND_HALF_UP));
+                                break;
+                            case java.sql.Types.DATE:
+                                Date dateValue = Date.valueOf(data[j]);
+                                ps.setDate(j + 1, dateValue);
+                                break;
+                            case java.sql.Types.TIMESTAMP:
+                                Timestamp timestampValue = Timestamp.valueOf(data[j]);
+                                ps.setTimestamp(j + 1, timestampValue);
+                                break;
+                            default:
+                                ps.setString(j + 1, data[j]); // Default to String
+                                break;
+                        }
+                    }
+                }
+
+                @Override
+                public int getBatchSize() {
+                    return batchData.size();
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}

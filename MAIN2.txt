@@ -1,0 +1,66 @@
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+
+import java.io.FileReader;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+https://learn.microsoft.com/en-us/sql/connect/jdbc/use-bulk-copy-api-batch-insert-operation?view=sql-server-ver16
+import com.opencsv.CSVReader;
+
+public class Main {
+    public static void main(String[] args) {
+        // Initialize JDBC Template
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        dataSource.setUrl("jdbc:sqlserver://your_server:port;databaseName=your_database");
+        dataSource.setUsername("your_username");
+        dataSource.setPassword("your_password");
+
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+        // Read from CSV and insert into database in batches
+        String csvFile = "Loan.csv";
+        int batchSize = 10000;
+
+        try (CSVReader reader = new CSVReader(new FileReader(csvFile))) {
+            String[] headers = reader.readNext(); // Skip header
+            
+            // Read metadata to get column names
+            ResultSetMetaData metaData = jdbcTemplate.getDataSource().getConnection()
+                    .prepareStatement("SELECT * FROM Loan WHERE 1 = 0")
+                    .executeQuery().getMetaData();
+
+            List<String[]> batchData = new ArrayList<>();
+            String[] data;
+            int count = 0;
+
+            while ((data = reader.readNext()) != null) {
+                batchData.add(data);
+                count++;
+
+                if (count % batchSize == 0) {
+                    insertBatch(jdbcTemplate, batchData, metaData);
+                    batchData.clear();
+                }
+            }
+
+            // Insert remaining data
+            if (!batchData.isEmpty()) {
+                insertBatch(jdbcTemplate, batchData, metaData);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void insertBatch(JdbcTemplate jdbcTemplate, List<String[]> batchData, ResultSetMetaData metaData) {
+        // Your batch update logic goes here
+    }
+}
