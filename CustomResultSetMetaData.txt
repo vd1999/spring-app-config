@@ -1,0 +1,63 @@
+// Read metadata to get column names
+ResultSetMetaData metaData = jdbcTemplate.getDataSource().getConnection()
+    .prepareStatement("SELECT * FROM Loan WHERE 1 = 0")
+    .executeQuery().getMetaData();
+
+// Store column names from metadata
+List<String> columnNamesFromMetadata = new ArrayList<>();
+for (int i = 1; i <= metaData.getColumnCount(); i++) {
+    columnNamesFromMetadata.add(metaData.getColumnName(i));
+}
+
+// Reorganize metadata columns according to the order in the CSV file
+List<String> columnNamesFromCSV = new ArrayList<>();
+try (CSVReader reader = new CSVReader(new FileReader("Loan.csv"))) {
+    columnNamesFromCSV.addAll(Arrays.asList(reader.readNext()));
+} catch (IOException e) {
+    e.printStackTrace();
+}
+
+Map<String, Integer> columnIndexMap = new HashMap<>();
+for (int i = 0; i < columnNamesFromCSV.size(); i++) {
+    String columnName = columnNamesFromCSV.get(i);
+    int index = columnNamesFromMetadata.indexOf(columnName) + 1; // Adding 1 to convert to 1-based index
+    if (index != 0) { // If the column name exists in the metadata
+        columnIndexMap.put(columnName, index);
+    } else {
+        System.err.println("Column " + columnName + " not found in metadata.");
+        // Handle the case where the column name from CSV is not found in the metadata
+    }
+}
+
+// Create a new ResultSetMetaData based on the order of columns in the CSV file
+List<String> orderedColumnNames = new ArrayList<>(columnNamesFromCSV);
+ResultSetMetaData orderedMetaData = new CustomResultSetMetaData(orderedColumnNames, columnIndexMap);
+
+
+// CustomResultSetMetaData class to implement the ResultSetMetaData interface
+class CustomResultSetMetaData implements ResultSetMetaData {
+    private List<String> columnNames;
+    private Map<String, Integer> columnIndexMap;
+    private ResultSetMetaData originalMetaData;
+
+    public CustomResultSetMetaData(List<String> columnNames, Map<String, Integer> columnIndexMap, ResultSetMetaData originalMetaData) {
+        this.columnNames = columnNames;
+        this.columnIndexMap = columnIndexMap;
+        this.originalMetaData = originalMetaData;
+    }
+
+    @Override
+    public String getColumnName(int column) throws SQLException {
+        return columnNames.get(column - 1); // Convert to 0-based index
+    }
+
+    @Override
+    public int getColumnType(int column) throws SQLException {
+        String columnName = getColumnName(column);
+        int originalColumnIndex = columnIndexMap.get(columnName); // Get the original column index from the map
+        return originalMetaData.getColumnType(originalColumnIndex);
+    }
+
+    // Implement other methods of ResultSetMetaData interface as needed
+    // For brevity, they are omitted here
+}
