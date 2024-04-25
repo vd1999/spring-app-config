@@ -1,0 +1,91 @@
+import com.opencsv.CSVReader;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.MessageTypeParser;
+
+import java.io.FileReader;
+import java.io.IOException;
+
+public class WriteParquetFileChunked {
+
+    public static void main(String[] args) throws IOException {
+        try (CSVReader reader = new CSVReader(new FileReader("example.csv"))) {
+            // Read the first line of the CSV file to get column names
+            String[] columnNames = reader.readNext();
+
+            // Create Parquet schema based on column names
+            MessageType schema = generateSchema(columnNames);
+
+            // Create a SimpleGroupFactory based on the schema
+            SimpleGroupFactory groupFactory = new SimpleGroupFactory(schema);
+
+            // Define the directory where the Parquet files will be stored
+            Path directory = new Path("example_directory");
+
+            // Create a ParquetWriter
+            try (ParquetWriter<Group> writer = new ParquetWriter<>(
+                    directory,
+                    ParquetWriter.Builder.createDefault(directory)
+                            .withWriteMode(ParquetWriter.Mode.CREATE)
+                            .withCompressionCodec(CompressionCodecName.SNAPPY)
+                            .withType(schema)
+                            .withConf(new Configuration())
+            )) {
+                long chunkSizeThreshold = 250 * 1024 * 1024; // 250 MB
+                long currentChunkSize = 0;
+                int fileIndex = 0;
+
+                // Write data to the Parquet file
+                String[] rowData;
+                while ((rowData = reader.readNext()) != null) {
+                    Group group = groupFactory.newGroup();
+                    for (int i = 0; i < columnNames.length; i++) {
+                        group.append(columnNames[i], rowData[i]);
+                    }
+
+                    // Calculate the size of the current group
+                    long groupSize = group.getGroup().getTotalByteSize();
+
+                    // Check if adding the current group would exceed the threshold
+                    if (currentChunkSize + groupSize > chunkSizeThreshold) {
+                        // If exceeded, close the current writer and open a new one
+                        writer.close();
+
+                        // Increment file index
+                        fileIndex++;
+
+                        // Open a new writer
+                        Path filePath = new Path(directory, "part-" + fileIndex + ".parquet");
+                        writer.open(filePath);
+
+                        // Reset current chunk size
+                        currentChunkSize = 0;
+                    }
+
+                    // Write the group to the Parquet file
+                    writer.write(group);
+
+                    // Update the current chunk size
+                    currentChunkSize += groupSize;
+                }
+            }
+        }
+
+        System.out.println("Data written to Parquet files successfully.");
+    }
+
+    private static MessageType generateSchema(String[] columnNames) {
+        StringBuilder schemaString = new StringBuilder("message example {\n");
+        for (String columnName : columnNames) {
+            schemaString.append("  required binary ").append(columnName).append(";\n");
+        }
+        schemaString.append("}");
+
+        return MessageTypeParser.parseMessageType(schemaString.toString());
+    }
+}
