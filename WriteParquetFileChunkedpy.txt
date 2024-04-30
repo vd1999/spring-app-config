@@ -1,0 +1,20 @@
+import math
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+
+df = pd.read_csv('boston.csv')
+schema = pa.schema([(col, pa.from_numpy_dtype(df[col].dtype)) for col in df.columns])
+table = pa.Table.from_pandas(df, schema=schema)
+chunk_size_bytes = 250 * 1024 * 1024
+chunk_size_rows = math.ceil(chunk_size_bytes / table.nbytes * len(df))
+num_chunks = math.ceil(len(df) / chunk_size_rows)
+compression = 'snappy'
+
+for i in range(num_chunks):
+    start = i * chunk_size_rows
+    end = min((i + 1) * chunk_size_rows, len(df))
+    chunk_df = df.iloc[start:end]
+    chunk_table = pa.Table.from_pandas(chunk_df, schema=schema)
+    pq.write_table(chunk_table, f'output1_chunk_{i + 1}.parquet', compression=compression)
