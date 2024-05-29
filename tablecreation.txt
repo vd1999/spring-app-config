@@ -1,0 +1,34 @@
+from snowflake.snowpark.session import Session
+from snowflake.snowpark.functions import col
+
+# Define the connection parameters (replace with your actual Snowflake connection details)
+connection_parameters = {
+    "account": "<your_account>",
+    "user": "<your_username>",
+    "password": "<your_password>",
+    "role": "<your_role>",
+    "warehouse": "<your_warehouse>",
+    "database": "<your_database>",
+    "schema": "<your_schema>"
+}
+
+# Create a Snowpark session
+session = Session.builder.configs(connection_parameters).create()
+
+# Load the TABLESCRIPT table
+tablescript_df = session.table("TABLESCRIPT")
+
+# Retrieve all the CREATE TABLE statements from the TABLECREATE column
+create_statements = tablescript_df.select(col("TABLECREATE")).collect()
+
+# Execute each CREATE TABLE statement
+for statement in create_statements:
+    create_table_sql = statement["TABLECREATE"]
+    try:
+        session.sql(create_table_sql).collect()
+        print(f"Successfully executed: {create_table_sql}")
+    except Exception as e:
+        print(f"Failed to execute: {create_table_sql} with error {e}")
+
+# Close the Snowpark session
+session.close()
