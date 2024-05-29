@@ -1,0 +1,54 @@
+import os
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+def convert_csv_to_chunked_parquet(directory, csv_filename, chunk_size_mb=50, csv_chunk_size=10000):
+    csv_file_path = os.path.join(directory, csv_filename)
+    base_parquet_file_path = os.path.join(directory, csv_filename.replace('.csv', ''))
+
+    try:
+        chunk_size_bytes = chunk_size_mb * 1024 * 1024  # Convert MB to Bytes
+        chunk_id = 0
+        current_file_size = 0
+        
+        parquet_writer = None
+        
+        # Read the CSV file in chunks
+        for chunk in pd.read_csv(csv_file_path, chunksize=csv_chunk_size):
+            table = pa.Table.from_pandas(chunk)
+            
+            # Initialize writer if it hasn't been initialized or if we need a new chunk
+            if parquet_writer is None:
+                parquet_file_path = f"{base_parquet_file_path}_{chunk_id}.parquet"
+                parquet_writer = pq.ParquetWriter(parquet_file_path, table.schema)
+                current_file_size = 0  # Reset file size for the new file
+            
+            # Write the chunk to the current parquet file
+            parquet_writer.write_table(table)
+            
+            # Estimate the size of the chunk written to Parquet
+            estimated_chunk_size = len(chunk) * table.nbytes / len(table)
+            current_file_size += estimated_chunk_size
+            
+            # Check if the current file size exceeds the chunk size limit
+            if current_file_size >= chunk_size_bytes:
+                # Close the current writer
+                parquet_writer.close()
+                # Increment the chunk ID for the new file
+                chunk_id += 1
+                # Set the writer to None to trigger initialization of a new file
+                parquet_writer = None
+        
+        # Close the last writer if still open
+        if parquet_writer:
+            parquet_writer.close()
+        
+        print(f"Converted {csv_filename} to chunked Parquet files with each chunk <= {chunk_size_mb}MB")
+    except Exception as e:
+        print(f"Could not convert {csv_filename} due to {e}")
+
+# Example usage
+directory = 'path/to/your/csv/directory'
+csv_filename = 'large_file.csv'
+convert_csv_to_chunked_parquet(directory, csv_filename)
