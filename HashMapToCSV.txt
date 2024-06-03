@@ -1,0 +1,57 @@
+import com.opencsv.CSVWriter;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class HashMapToCSV {
+
+    public static void main(String[] args) {
+        // Create the HashMap
+        HashMap<String, List<String>> hashMap = new HashMap<>();
+
+        // Example data
+        addEntry(hashMap, "table1", "column1", "dataType1");
+        addEntry(hashMap, "table1", "column2", "dataType2");
+        addEntry(hashMap, "table2", "column1", "dataType1");
+        addEntry(hashMap, "table2", "column2", "dataType2");
+        addEntry(hashMap, "table3", "column1", "dataType1");
+
+        // Add more entries to simulate 500 entries
+        // for (int i = 0; i < 500; i++) {
+        //     addEntry(hashMap, "table" + i, "column" + i, "dataType" + i);
+        // }
+
+        // Specify the path to the output CSV file
+        String csvFile = "output.csv";
+
+        // Write HashMap to CSV
+        try (CSVWriter writer = new CSVWriter(new FileWriter(csvFile))) {
+            // Write header
+            String[] header = { "TableName", "ColumnName", "DataType" };
+            writer.writeNext(header);
+
+            // Write all entries from the HashMap
+            for (Map.Entry<String, List<String>> entry : hashMap.entrySet()) {
+                String tableName = entry.getKey();
+                for (String value : entry.getValue()) {
+                    String[] values = value.split(",");
+                    writer.writeNext(new String[] { tableName, values[1], values[2] });
+                }
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("CSV file created successfully.");
+    }
+
+    private static void addEntry(HashMap<String, List<String>> hashMap, String tableName, String columnName, String dataType) {
+        String entry = tableName + "," + columnName + "," + dataType;
+        hashMap.computeIfAbsent(tableName, k -> new ArrayList<>()).add(entry);
+    }
+}
