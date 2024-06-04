@@ -1,0 +1,59 @@
+from snowpark import (
+    Session,
+    CollectList,
+)
+from snowpark.types import StringType
+
+# Start Snowpark session
+session = Session({
+    "URL": "your_account_url",
+    "USER": "your_username",
+    "PASSWORD": "your_password",
+    "WAREHOUSE": "your_warehouse",
+    "DATABASE": "your_database",
+    "SCHEMA": "your_schema",
+})
+
+# Create a Snowflake table to store the copy statements
+create_table_query = """
+CREATE OR REPLACE TABLE copy_statements (
+    table_name STRING,
+    copy_into_statement STRING
+)
+"""
+session.sql(create_table_query)
+
+# Create a DataFrame for your_snowflake_table
+df = session.table("your_snowflake_table")
+
+# Aggregate column names and data types by table name
+agg_df = (
+    df.groupBy("tablename")
+      .agg(
+          CollectList("columnname").alias("column_names"),
+          CollectList("columndatatype").alias("column_data_types")
+      )
+)
+
+# Iterate over each row in the DataFrame and build COPY INTO statements
+copy_statements = []
+for row in agg_df.collect():
+    table_name = row["tablename"]
+    column_names = row["column_names"]
+    column_data_types = row["column_data_types"]
+
+    # Build column list for COPY INTO statement
+    columns = ", ".join(f"{name}::{data_type}" for name, data_type in zip(column_names, column_data_types))
+
+    # Build COPY INTO statement
+    copy_into_statement = f"COPY INTO {table_name} FROM (SELECT {columns} FROM {table_name})"
+    copy_statements.append((table_name, copy_into_statement))
+
+# Create a DataFrame for copy_statements
+copy_statements_df = session.createDataFrame(copy_statements, ["table_name", "copy_into_statement"])
+
+# Insert copy statements into the copy_statements table
+copy_statements_df.write.format("snowflake").option("dbtable", "copy_statements").mode("append").save()
+
+# End Snowpark session
+session.stop()

@@ -1,0 +1,60 @@
+import snowflake.connector
+
+# Connect to Snowflake
+conn = snowflake.connector.connect(
+    user='your_username',
+    password='your_password',
+    account='your_account',
+    warehouse='your_warehouse',
+    database='your_database',
+    schema='your_schema'
+)
+
+# Create a cursor object
+cur = conn.cursor()
+
+# Create the table to store table name and COPY INTO statement
+create_table_query = """
+CREATE TABLE IF NOT EXISTS copy_statements (
+    table_name VARCHAR,
+    copy_into_statement VARCHAR
+)
+"""
+cur.execute(create_table_query)
+
+# Query the snowflake table for table names, column names, and data types
+select_query = """
+SELECT table_name, ARRAY_AGG(column_name), ARRAY_AGG(column_data_type)
+FROM your_snowflake_table
+GROUP BY table_name
+"""
+cur.execute(select_query)
+
+# Fetch all rows
+rows = cur.fetchall()
+
+# Build and execute COPY INTO statements for each table
+for row in rows:
+    table_name = row[0]
+    column_names = row[1]
+    column_data_types = row[2]
+    
+    # Build column list for COPY INTO statement
+    columns = ", ".join([f"{name}::{data_type}" for name, data_type in zip(column_names, column_data_types)])
+    
+    # Build COPY INTO statement
+    copy_into_statement = f"COPY INTO {table_name} FROM (SELECT {columns} FROM {table_name})"
+    
+    # Insert table name and COPY INTO statement into the new table
+    insert_query = """
+    INSERT INTO copy_statements (table_name, copy_into_statement)
+    VALUES (%s, %s)
+    """
+    cur.execute(insert_query, (table_name, copy_into_statement))
+
+# Commit the transaction
+conn.commit()
+
+# Close the cursor and connection
+cur.close()
+conn.close()
